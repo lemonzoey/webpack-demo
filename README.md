@@ -8,6 +8,70 @@ npm run server
 
 
 ### 二.webpack配置的详细解释
+  1.error: webpack.optimize.CommonsChunkPlugin has been removed, please use config.optimization.splitChunks instead.
+ 这里有个坑，webpack 4.0.0-beta.0删除了 CommonsChunkPlugin，以支持两个新的选项（optimization.splitChunks 和 optimization.runtimeChunk）。
+
+从webpack 4.0.0-beta.0 开始分割 Chunk 将不在使用 CommonsChunkPlugin 插件，而是使用 optimization 配置项，具体的实现原理可以参考 CommonsChunkPlugin。
+
+对于那些需要细粒度控制缓存策略的人，可以通过 optimization.splitChunks和 optimization.runtimeChunk。 现在可以使用 module.rules[].resolve来配置解析。它与全局配置合并。
+ ```js
+ 删掉 new webpack.optimize.CommonsChunkPlugin({
+            name: 'common' // 指定公共 bundle 的名称。
+        }),
+ 改用  new webpack.optimize.RuntimeChunkPlugin({
+            name: "common" // 指定公共 bundle 的名称
+        }),
+```
+ 
+
+ optimization的配置介绍如下：
+```js
+//这里有两种使用方式：
+const config= {
+     //方式一：
+     optimization:{...}
+     //方式二：
+     plugins: [
+         new webpack.optimize.SplitChunksPlugin({...})
+     ]
+}
+
+optimization参数介绍：
+
+optimization: {
+     runtimeChunk: {
+        name: "manifest"        //指定公共 bundle 的名称
+    },
+    splitChunks: {
+      chunks: "initial",         // 必须三选一： "initial" | "all"(默认就是all) | "async"
+      minSize: 0,                // 最小尺寸，默认0
+      minChunks: 1,              // 最小 chunk ，默认1
+      maxAsyncRequests: 1,       // 最大异步请求数， 默认1
+      maxInitialRequests: 1,    // 最大初始化请求书，默认1
+      name: () => {},              // 名称，此选项可接收 function
+      cacheGroups: {                 // 这里开始设置缓存的 chunks
+        priority: "0",                // 缓存组优先级 false | object |
+        vendor: {                   // key 为entry中定义的 入口名称
+          chunks: "initial",        // 必须三选一： "initial" | "all" | "async"(默认就是异步)
+          test: /react|lodash/,     // 正则规则验证，如果符合就提取 chunk
+          name: "vendor",           // 要缓存的 分隔出来的 chunk 名称
+          minSize: 0,
+          minChunks: 1,
+          enforce: true,
+          maxAsyncRequests: 1,       // 最大异步请求数， 默认1
+          maxInitialRequests: 1,    // 最大初始化请求书，默认1
+          reuseExistingChunk: true   // 可设置是否重用该chunk（查看源码没有发现默认值）
+        }
+      }
+    }
+  },
+```
+
+  2.filename: '[name].[chunkhash].js',
+  dev环境时候报错：Cannot use [chunkhash] or [contenthash] for chunk in '[name].[chunkhash].js' (use [hash] instead)
+  这里[chunkhash]=>改成[hash]
+  bundle 的名称是它内容（通过 hash）的映射。如果我们不做修改，然后再次运行构建，我们以为文件名会保持不变。然而，如果我们真的运行，可能会发现情况并非如此：（译注：这里的意思是，如果不做修改，文件名可能会变，也可能不会。）
+
 ```js
 const path = require('path')
 const webpack = require('webpack')
@@ -28,6 +92,8 @@ const config = {
         path:path.resolve(__dirname,'dist'),
         //publicPath 也会在服务器脚本用到，以确保文件资源能够在 http://localhost:3000 下正确访问
         publicPath:'/'
+        //此选项决定了非入口(non-entry) chunk 文件的名称
+        chunkFilename:'[name].bundle.js',
         
     },
     mode:'none',
@@ -48,6 +114,13 @@ const config = {
     devtool:'inline-source-map',
     //配置插件，完成loader无法完成的功能
     plugins: [
+         //离线任务未完成，报错：TypeError: WorkboxPlugin is not a constructor，原因待查
+        // new WorkboxPlugin({
+        //  // 这些选项帮助 ServiceWorkers 快速启用
+        //  // 不允许遗留任何“旧的” ServiceWorkers
+        //    clientsClaim: true,
+        //    skipWaiting: true
+        // }),
         /*
           自动生成html,及文件的引用
           html-webpack-plugin用来打包入口html文件
@@ -65,7 +138,21 @@ const config = {
         //查看要修补(patch)的依赖
         new webpack.NamedModulesPlugin(),
         //删除未引用代码(dead code)的压缩工具(minifier)
-        new UglifyJSPlugin()
+        new UglifyJSPlugin(),
+         //允许你创建一个在编译时可以配置的全局常量。这可能会对开发模式和
+        //发布模式的构建允许不同的行为非常有用
+        //比如,你可能会用一个全局的常量来决定 log 在开发模式触发而不是发布模式。
+        //这仅仅是 DefinePlugin 提供的便利的一个场景。
+        new webpack.DefinePlugin({
+            'process.env.NODE_ENV': JSON.stringify('production')
+        }),
+        //这里会导致报错，因为方法已经被弃用，官网真坑，不给维护，换成另一种方式配置
+        //  new webpack.optimize.CommonsChunkPlugin({
+        //     name: 'common' // 指定公共 bundle 的名称。
+        // }),
+         //HashedModuleIdsPlugin，推荐用于生产环境构建：使用这个可以实现缓存，那些没有改变的文件就不会
+        //随着每次构建而改变了，节约资源
+        new webpack.HashedModuleIdsPlugin(),
     ],
     //webpack-dev-server 为你提供了一个简单的 web 服务器，并且能够实时重新加载,devServer启动的就是webpack-dev-server
     //以下配置告知 webpack-dev-server，在 localhost:8080 下建立服务，将 dist 目录下的文件，作为可访问文件。

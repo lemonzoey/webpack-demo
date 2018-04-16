@@ -3,7 +3,7 @@ const CleanWebpackPlugin  = require('clean-webpack-plugin')
 const webpack = require('webpack')
 const merge = require('webpack-merge')
 const common = require('./webpack.common')
-const dev =merge(common,{
+const dev = merge(common,{
     
     //追踪错误来源，若不配置，错误会在bundle.js中，不好找错误
     devtool:'inline-source-map',
@@ -19,7 +19,7 @@ const dev =merge(common,{
     devServer:{
         //告诉开发服务器(dev server)，在哪里查找文件：
         contentBase:'./dist',
-        port:'3333',
+        port:'3000',
         //启动热重载
         hot:true 
     }

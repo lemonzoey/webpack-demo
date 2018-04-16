@@ -1,0 +1,1 @@
+{"version":3,"sources":["webpack:///./src/index.ts"],"names":["document","body","innerHTML"],"mappings":"8EAMAA,SAASC,KAAKC,UALH,UAGA","file":"main.0ae79f7eea1ad11d88d4.js","sourcesContent":["function greeter(person: string) {\n    return \"Hello, \" + person;\n}\n\nlet user = \"lemon_zoey\";\n\ndocument.body.innerHTML = greeter(user);"],"sourceRoot":""}
